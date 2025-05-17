@@ -1,51 +1,12 @@
 import { Hono } from 'hono';
 
 import { ArticleMetadataSchema, type ArticleMetadata } from './types/ArticleMetadataSchema';
-import { DiscordMessageSchema, type DiscordMessage } from './types/DiscordMessageSchema';
 import { QueueHandlerMessageSchema, type QueueHandlerMessage } from './types/QueueHandlerMessageSchema';
+import { sendDiscordMessage } from './functions/sendDiscordMessage';
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
 app.get('/', (c) => c.text('Hello World'));
-
-async function sendDiscordMessage(DISCORD_WEBHOOK_URL: string, articleMetadata: ArticleMetadata) {
-
-  const { title, url, description, timestamp, thumbnailURL } = ArticleMetadataSchema.parse(articleMetadata);
-
-  const body = DiscordMessageSchema.parse({
-    "username": "Calpa 的自動人形",
-    "avatar_url": "https://assets.calpa.me/telegram/public/pfp.png",
-    "content": "📰 Calpa 發佈新文章啦！",
-    "embeds": [
-      {
-        "title": title,
-        "url": url,
-        "description": description,
-        "color": 5814783,
-        "footer": {
-          "text": "Calpa 的煉金工房"
-        },
-        "timestamp": timestamp,
-        "thumbnail": {
-          "url": thumbnailURL
-        }
-      }
-    ]
-  });
-
-  const response = await fetch(DISCORD_WEBHOOK_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    console.error(`Failed to send to Discord: ${response.status} ${await response.text()}`);
-    return false;
-  }
-
-  return true;
-}
 
 app.post('/send-message', async (c) => {
   const authHeader = c.req.header('authorization');
