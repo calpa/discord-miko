@@ -64,7 +64,7 @@ const exportHandler: ExportedHandler<CloudflareBindings, QueueHandlerMessage> = 
     await Promise.all(
       batch.messages.map(async (message) => {
         try {
-          if (message.body.token !== env.AUTH_TOKEN) {
+          if (message.body.token !== env.DISCORD_MIKO_KEY) {
             console.error(`Unauthorized access attempt`);
             message.ack();
             return;
