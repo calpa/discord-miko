@@ -1,21 +1,42 @@
 import { Hono } from 'hono';
 
-/**
- * QueueHandlerMessage represents the payload for messages handled by the Worker queue.
- */
-type QueueHandlerMessage = {
-  content: string;
-};
+import { ArticleMetadataSchema, type ArticleMetadata } from './types/ArticleMetadataSchema';
+import { DiscordMessageSchema, type DiscordMessage } from './types/DiscordMessageSchema';
+import { QueueHandlerMessageSchema, type QueueHandlerMessage } from './types/QueueHandlerMessageSchema';
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
 app.get('/', (c) => c.text('Hello World'));
 
-async function sendDiscordMessage(DISCORD_WEBHOOK_URL: string, content: string) {
+async function sendDiscordMessage(DISCORD_WEBHOOK_URL: string, articleMetadata: ArticleMetadata) {
+
+  const { title, url, description, timestamp, thumbnailURL } = ArticleMetadataSchema.parse(articleMetadata);
+
+  const body = DiscordMessageSchema.parse({
+    "username": "Calpa 的自動人形",
+    "avatar_url": "https://assets.calpa.me/telegram/public/pfp.png",
+    "content": "📰 Calpa 發佈新文章啦！",
+    "embeds": [
+      {
+        "title": title,
+        "url": url,
+        "description": description,
+        "color": 5814783,
+        "footer": {
+          "text": "Calpa 的煉金工房"
+        },
+        "timestamp": timestamp,
+        "thumbnail": {
+          "url": thumbnailURL
+        }
+      }
+    ]
+  });
+
   const response = await fetch(DISCORD_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -27,12 +48,17 @@ async function sendDiscordMessage(DISCORD_WEBHOOK_URL: string, content: string) 
 }
 
 app.post('/send-message', async (c) => {
-  const { content } = await c.req.json<{ content: string }>();
-  if (!content) {
-    return c.json({ error: 'Missing content' }, 400);
+  const authHeader = c.req.header('authorization');
+  const expectedToken = c.env.AUTH_TOKEN;
+  if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
+    return c.json({ error: 'Unauthorized' }, 401);
   }
 
-  const response = await sendDiscordMessage(c.env.DISCORD_WEBHOOK_URL, content);
+  const json = await c.req.json<ArticleMetadata>();
+
+  const articleMetadata = ArticleMetadataSchema.parse(json);
+
+  const response = await sendDiscordMessage(c.env.DISCORD_WEBHOOK_URL, articleMetadata);
 
   if (!response) {
     return c.json({ error: 'Failed to send to Discord' }, 500);
@@ -55,7 +81,9 @@ const exportHandler: ExportedHandler<CloudflareBindings, QueueHandlerMessage> = 
     await Promise.all(
       batch.messages.map(async (message) => {
         try {
-          const response = await sendDiscordMessage(env.DISCORD_WEBHOOK_URL, message.body.content);
+          const articleMetadata = QueueHandlerMessageSchema.parse(message.body);
+
+          const response = await sendDiscordMessage(env.DISCORD_WEBHOOK_URL, articleMetadata.content);
 
           if (!response) {
             console.error(`Failed to send to Discord`);
