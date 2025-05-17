@@ -105,7 +105,7 @@ const exportHandler: ExportedHandler<CloudflareBindings, QueueHandlerMessage> = 
         try {
           const articleMetadata = QueueHandlerMessageSchema.parse(message.body);
 
-          const response = await sendDiscordMessage(env.DISCORD_WEBHOOK_URL, articleMetadata.content);
+          const response = await sendDiscordMessage(env.DISCORD_WEBHOOK_URL, articleMetadata);
 
           if (!response) {
             console.error(`Failed to send to Discord`);
