@@ -10,7 +10,7 @@ app.get('/', (c) => c.text('Hello World'));
 
 app.post('/send-message', async (c) => {
   const authHeader = c.req.header('authorization');
-  const expectedToken = c.env.AUTH_TOKEN;
+  const expectedToken = c.env.DISCORD_MIKO_KEY;
   console.log('[POST /send-message] Received request', { authHeader: !!authHeader });
 
   if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
