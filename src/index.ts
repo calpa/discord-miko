@@ -64,6 +64,12 @@ const exportHandler: ExportedHandler<CloudflareBindings, QueueHandlerMessage> = 
     await Promise.all(
       batch.messages.map(async (message) => {
         try {
+          if (message.body.token !== env.AUTH_TOKEN) {
+            console.error(`Unauthorized access attempt`);
+            message.ack();
+            return;
+          }
+
           const articleMetadata = QueueHandlerMessageSchema.parse(message.body);
 
           const response = await sendDiscordMessage(env.DISCORD_WEBHOOK_URL, articleMetadata);
